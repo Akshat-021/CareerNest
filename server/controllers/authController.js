@@ -41,7 +41,7 @@ exports.register = async (req, res, next) => {
     });
 
     // Send OTP Email
-    await sendMail({
+    const mailInfo = await sendMail({
       to: user.email,
       subject: 'Verify your AI Mentor Account',
       text: `Your OTP code is ${otp}. It will expire in 10 minutes.`,
@@ -50,7 +50,8 @@ exports.register = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful. OTP sent to your email.'
+      message: 'Registration successful. OTP sent to your email.',
+      ...(mailInfo && mailInfo.mock ? { devOtp: otp } : {})
     });
   } catch (error) {
     next(error);
@@ -125,14 +126,18 @@ exports.resendOtp = async (req, res, next) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    await sendMail({
+    const mailInfo = await sendMail({
       to: user.email,
       subject: 'Verify your AI Mentor Account (Resend)',
       text: `Your new OTP code is ${otp}. It will expire in 10 minutes.`,
       html: `<h3>Account Verification</h3><p>Your new OTP code is: <b>${otp}</b></p>`
     });
 
-    res.status(200).json({ success: true, message: 'New OTP sent to email' });
+    res.status(200).json({
+      success: true,
+      message: 'New OTP sent to email',
+      ...(mailInfo && mailInfo.mock ? { devOtp: otp } : {})
+    });
   } catch (error) {
     next(error);
   }

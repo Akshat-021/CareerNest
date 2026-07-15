@@ -7,8 +7,9 @@ import { FiCheckSquare, FiAlertCircle } from 'react-icons/fi';
 const VerifyOtp = () => {
   const { verifyOtp, resendOtp } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const email = searchParams.get('email') || '';
+  const [devOtp, setDevOtp] = useState(searchParams.get('devOtp') || '');
 
   const [serverError, setServerError] = useState('');
   const [serverSuccess, setServerSuccess] = useState('');
@@ -49,6 +50,9 @@ const VerifyOtp = () => {
       const res = await resendOtp(email);
       if (res.success) {
         setServerSuccess('A new verification code was sent to your email.');
+        if (res.devOtp) {
+          setDevOtp(res.devOtp);
+        }
       }
     } catch (error) {
       setServerError('Failed to resend code. Try again later.');
@@ -79,6 +83,13 @@ const VerifyOtp = () => {
           <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl text-xs flex items-center gap-2">
             <FiCheckSquare size={16} />
             <span>{serverSuccess}</span>
+          </div>
+        )}
+
+        {devOtp && (
+          <div className="mb-6 p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 rounded-xl text-xs flex flex-col gap-1">
+            <span className="font-bold uppercase tracking-wider text-[9px]">Development Fallback</span>
+            <span>OTP sent to developer console. Use this code to verify: <b>{devOtp}</b></span>
           </div>
         )}
 

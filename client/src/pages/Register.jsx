@@ -26,7 +26,8 @@ const Register = () => {
     try {
       const res = await registerAuth(data.name, data.email, data.password, data.role);
       if (res.success) {
-        navigate(`/verify-otp?email=${encodeURIComponent(data.email)}`);
+        const devOtpParam = res.devOtp ? `&devOtp=${res.devOtp}` : '';
+        navigate(`/verify-otp?email=${encodeURIComponent(data.email)}${devOtpParam}`);
       }
     } catch (error) {
       setServerError(error.response?.data?.message || 'Registration failed. Try again.');
