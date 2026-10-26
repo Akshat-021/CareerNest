@@ -41,10 +41,15 @@ const connectDB = async () => {
   const uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ai-mentor-portal';
 
   try {
-    cachedPromise = mongoose.connect(uri, {
+    const opts = {
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 5000
-    });
+    };
+    if (uri.startsWith('mongodb+srv://') && !uri.includes('authSource=')) {
+      opts.authSource = 'admin';
+    }
+
+    cachedPromise = mongoose.connect(uri, opts);
 
     const conn = await cachedPromise;
     lastError = null;
