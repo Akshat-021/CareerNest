@@ -80,7 +80,8 @@ app.use(async (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
     return res.status(503).json({
       success: false,
-      message: 'Database connection unavailable. Please ensure MONGO_URI is configured in Vercel Environment Variables and MongoDB Atlas Network Access allows 0.0.0.0/0.',
+      message: 'Database connection unavailable.',
+      dbError: connectDB.getLastError ? connectDB.getLastError() : null,
       dbState: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown',
       hasMongoUri: Boolean(process.env.MONGO_URI)
     });
@@ -122,7 +123,8 @@ app.get('/api/health', (req, res) => {
       connected: readyState === 1,
       readyState,
       state: states[readyState] || 'unknown',
-      hasMongoUri: Boolean(process.env.MONGO_URI)
+      hasMongoUri: Boolean(process.env.MONGO_URI),
+      lastError: connectDB.getLastError ? connectDB.getLastError() : null
     },
     cors: {
       configuredClientUrl: process.env.CLIENT_URL || null
