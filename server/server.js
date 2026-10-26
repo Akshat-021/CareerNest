@@ -25,8 +25,10 @@ const server = http.createServer(app);
 // Trust reverse proxy for client IP detection on Vercel and Render
 app.set('trust proxy', 1);
 
-// Connect database
-connectDB();
+// Connect database (for non-serverless persistent environments)
+if (!process.env.VERCEL) {
+  connectDB();
+}
 
 // Initialize Socket.io
 initSocket(server);
@@ -114,7 +116,12 @@ app.get('/', (req, res) => {
 });
 
 // Health check route
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch (e) {}
+  }
   const readyState = mongoose.connection.readyState;
   const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
   res.json({
@@ -124,6 +131,7 @@ app.get('/api/health', (req, res) => {
       readyState,
       state: states[readyState] || 'unknown',
       hasMongoUri: Boolean(process.env.MONGO_URI),
+      targetHost: connectDB.getMaskedUri ? connectDB.getMaskedUri() : null,
       lastError: connectDB.getLastError ? connectDB.getLastError() : null
     },
     cors: {
