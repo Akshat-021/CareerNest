@@ -38,7 +38,9 @@ const connectDB = async () => {
     return null;
   }
 
-  const uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ai-mentor-portal';
+  let rawUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ai-mentor-portal';
+  // Strip accidental quotes or leading/trailing whitespace
+  const uri = rawUri.trim().replace(/^["']|["']$/g, '');
 
   try {
     const opts = {
@@ -66,9 +68,10 @@ const connectDB = async () => {
 connectDB.getLastError = () => lastError;
 
 connectDB.getMaskedUri = () => {
-  const uri = process.env.MONGO_URI;
-  if (!uri) return 'NOT_CONFIGURED';
+  const rawUri = process.env.MONGO_URI;
+  if (!rawUri) return 'NOT_CONFIGURED';
   try {
+    const uri = rawUri.trim().replace(/^["']|["']$/g, '');
     if (uri.includes('@')) {
       const parts = uri.split('@');
       const protocol = parts[0].split('://')[0];
@@ -81,7 +84,39 @@ connectDB.getMaskedUri = () => {
   }
 };
 
+connectDB.getUriDiagnostics = () => {
+  const rawUri = process.env.MONGO_URI;
+  if (!rawUri) return null;
+  try {
+    const uri = rawUri.trim().replace(/^["']|["']$/g, '');
+    const afterProto = uri.replace(/^mongodb(\+srv)?:\/\//, '');
+    const atIndex = afterProto.lastIndexOf('@');
+    if (atIndex === -1) return { error: 'No @ delimiter found in connection string' };
+
+    const userPass = afterProto.substring(0, atIndex);
+    const hostDb = afterProto.substring(atIndex + 1);
+
+    const colonIndex = userPass.indexOf(':');
+    const username = colonIndex !== -1 ? userPass.substring(0, colonIndex) : userPass;
+    const password = colonIndex !== -1 ? userPass.substring(colonIndex + 1) : '';
+
+    return {
+      parsedUsername: username,
+      passwordLength: password.length,
+      passwordFirstChar: password.length > 0 ? password[0] : null,
+      passwordLastChar: password.length > 0 ? password[password.length - 1] : null,
+      passwordContainsAt: password.includes('@'),
+      hadQuotes: rawUri.startsWith('"') || rawUri.startsWith("'"),
+      hadWhitespace: rawUri !== rawUri.trim(),
+      targetHostDb: hostDb.split('?')[0]
+    };
+  } catch (e) {
+    return { parseError: e.message };
+  }
+};
+
 module.exports = connectDB;
+
 
 
 

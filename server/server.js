@@ -132,6 +132,7 @@ app.get('/api/health', async (req, res) => {
       state: states[readyState] || 'unknown',
       hasMongoUri: Boolean(process.env.MONGO_URI),
       targetHost: connectDB.getMaskedUri ? connectDB.getMaskedUri() : null,
+      uriDiagnostics: connectDB.getUriDiagnostics ? connectDB.getUriDiagnostics() : null,
       lastError: connectDB.getLastError ? connectDB.getLastError() : null
     },
     cors: {
