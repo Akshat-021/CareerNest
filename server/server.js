@@ -22,6 +22,9 @@ const communityRoutes = require('./routes/communityRoutes');
 const app = express();
 const server = http.createServer(app);
 
+// Trust reverse proxy for client IP detection on Vercel and Render
+app.set('trust proxy', 1);
+
 // Connect database
 connectDB();
 
@@ -88,10 +91,13 @@ app.use(errorHandler);
 
 // Set Port and start server (standardized default backend port: 5001)
 const PORT = process.env.PORT || 5001;
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   server.listen(PORT, () => {
     console.log(`CareerNest server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   });
 }
 
-module.exports = { app, server };
+// Export express app directly for serverless runtimes (Vercel), while preserving { app, server }
+app.app = app;
+app.server = server;
+module.exports = app;
