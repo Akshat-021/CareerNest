@@ -1,8 +1,22 @@
 import React, { useState } from 'react';
-import { FiUploadCloud, FiAlertCircle, FiCheckSquare, FiAlertTriangle, FiBookOpen, FiFileText, FiAward } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import {
+  FiUploadCloud,
+  FiAlertCircle,
+  FiCheckSquare,
+  FiAlertTriangle,
+  FiBookOpen,
+  FiFileText,
+  FiUser,
+  FiBriefcase,
+  FiAward
+} from 'react-icons/fi';
 import api from '../services/api';
+import { Alert, FallbackDisclosure } from '../components/feedback';
+import { Button } from '../components/common';
 
 const AIResume = () => {
+  const navigate = useNavigate();
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState(null);
@@ -34,9 +48,11 @@ const AIResume = () => {
       });
       if (res.data.success) {
         setAnalysis(res.data.analysis);
+      } else {
+        setError(res.data.message || 'Failed to scan resume.');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to scan resume. Check file extensions.');
+      setError(err.response?.data?.message || 'Failed to scan resume. Check file format (PDF, DOCX) and size.');
     } finally {
       setLoading(false);
     }
@@ -55,6 +71,15 @@ const AIResume = () => {
         <p className="text-xs text-gray-400">Upload your resume to check its ATS compatibility score, missing keywords, and structural improvements.</p>
       </div>
 
+      {error && (
+        <Alert
+          type="error"
+          title="Resume Processing Notice"
+          message={error}
+          onClose={() => setError('')}
+        />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* FILE UPLOAD COMPONENT */}
         <div className="lg:col-span-1 flex flex-col gap-4">
@@ -72,27 +97,19 @@ const AIResume = () => {
                 accept=".pdf,.doc,.docx"
                 onChange={handleFileChange}
                 className="hidden"
+                aria-label="Upload resume file"
               />
             </label>
 
-            {error && (
-              <div className="w-full p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-[10px] flex items-center gap-2">
-                <FiAlertCircle size={14} />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <button
+            <Button
               onClick={handleScanResume}
               disabled={loading || !file}
-              className="glass-button-primary w-full mt-2"
+              isLoading={loading}
+              variant="primary"
+              className="w-full mt-2"
             >
-              {loading ? (
-                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-              ) : (
-                'Upload & Scan Resume'
-              )}
-            </button>
+              Upload & Scan Resume
+            </Button>
           </div>
         </div>
 
@@ -106,7 +123,7 @@ const AIResume = () => {
           ) : analysis ? (
             <div className="glass-panel rounded-2xl p-6 flex flex-col gap-6">
               {/* ATS SCORE HEADER */}
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-gray-200/50 dark:border-gray-800/50 pb-5">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200/50 dark:border-gray-800/50 pb-5">
                 <div className="flex items-center gap-4">
                   <div className={`w-20 h-20 rounded-full border-4 flex flex-col items-center justify-center ${getScoreColor(analysis.atsScore)}`}>
                     <span className="text-2xl font-extrabold">{analysis.atsScore}%</span>
@@ -117,6 +134,14 @@ const AIResume = () => {
                     <p className="text-xs text-gray-400">Status Rating: <span className="font-bold text-gray-700 dark:text-gray-200">{analysis.rating}</span></p>
                   </div>
                 </div>
+
+                <div className="w-full sm:w-auto">
+                  <FallbackDisclosure
+                    isSimulated={analysis.isSimulatedFallback ?? true}
+                    engineName={analysis.aiEngine || (analysis.isSimulatedFallback ? 'Heuristic Resume Evaluation Engine' : 'Google Gemini AI')}
+                    compact={true}
+                  />
+                </div>
               </div>
 
               {/* DETAILED ISSUES ACCORDION LIST */}
@@ -125,11 +150,14 @@ const AIResume = () => {
                 <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/50 rounded-xl flex flex-col gap-2">
                   <h4 className="text-xs font-bold text-indigo-500 uppercase flex items-center gap-1.5"><FiBookOpen /> Missing Keywords/Skills</h4>
                   <div className="flex flex-wrap gap-1.5 mt-1">
-                    {analysis.missingSkills.map((sk, idx) => (
+                    {(analysis.missingSkills || []).map((sk, idx) => (
                       <span key={idx} className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 px-2.5 py-1 rounded-full">
                         {sk}
                       </span>
                     ))}
+                    {(!analysis.missingSkills || analysis.missingSkills.length === 0) && (
+                      <span className="text-xs text-gray-400">No critical missing keywords identified.</span>
+                    )}
                   </div>
                 </div>
 
@@ -137,7 +165,7 @@ const AIResume = () => {
                 <div className="p-4 bg-gray-50 dark:bg-gray-900/40 border border-gray-200/50 dark:border-gray-800/50 rounded-xl flex flex-col gap-2">
                   <h4 className="text-xs font-bold text-rose-500 uppercase flex items-center gap-1.5"><FiAlertTriangle /> Grammar & Formatting Issues</h4>
                   <ul className="flex flex-col gap-1.5 list-disc list-inside text-xs text-gray-500 dark:text-gray-400">
-                    {analysis.formattingIssues.concat(analysis.grammarSuggestions).slice(0, 3).map((item, idx) => (
+                    {((analysis.formattingIssues || []).concat(analysis.grammarSuggestions || [])).slice(0, 3).map((item, idx) => (
                       <li key={idx} className="leading-relaxed">{item}</li>
                     ))}
                   </ul>
@@ -148,11 +176,42 @@ const AIResume = () => {
               <div className="p-4 bg-emerald-500/[0.02] border border-emerald-500/10 rounded-xl flex flex-col gap-3">
                 <h4 className="text-xs font-bold text-emerald-500 uppercase flex items-center gap-1.5"><FiCheckSquare /> Suggested Action Bullet Points (Google X-Y-Z Format)</h4>
                 <div className="flex flex-col gap-2">
-                  {analysis.improvedPoints.map((pt, idx) => (
+                  {(analysis.improvedPoints || []).map((pt, idx) => (
                     <div key={idx} className="p-3 bg-white dark:bg-gray-950 rounded-lg text-xs leading-relaxed border border-gray-150 dark:border-gray-850">
                       💡 "{pt}"
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* CONNECTED CAREER WORKFLOW ACTIONS */}
+              <div className="border-t border-gray-200/50 dark:border-gray-800/50 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Synchronize & Expand Your Career Assets</h4>
+                  <p className="text-[11px] text-gray-500">View your verified Career Passport credentials or match against live job requirements.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate('/passport')}
+                  >
+                    <FiAward className="mr-1.5 text-indigo-500" /> Career Passport
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate('/profile')}
+                  >
+                    <FiUser className="mr-1.5 text-emerald-500" /> Update Profile
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => navigate('/ai-job-analyzer')}
+                  >
+                    <FiBriefcase className="mr-1.5" /> Job Analyzer
+                  </Button>
                 </div>
               </div>
             </div>

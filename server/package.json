@@ -7,7 +7,18 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed": "node scripts/seed.js",
-    "test": "node tests/api.test.js"
+    "test": "node tests/security.test.js && node tests/critical_fixes.test.js && node tests/ai_integration.test.js && node tests/community.test.js && node tests/phase5_hardening.test.js && node tests/phase6_mentorship.test.js && node --test tests/phase7_enrollment.test.js && node --test tests/phase7_1_safety.test.js && node --test tests/phase7_2_legacy_cert.test.js",
+    "test:security": "node tests/security.test.js",
+    "test:fixes": "node tests/critical_fixes.test.js",
+    "test:ai": "node tests/ai_integration.test.js",
+    "test:community": "node tests/community.test.js",
+    "test:phase5": "node tests/phase5_hardening.test.js",
+    "test:phase6": "node tests/phase6_mentorship.test.js",
+    "test:phase7": "node --test tests/phase7_enrollment.test.js",
+    "test:phase7_1": "node --test tests/phase7_1_safety.test.js",
+    "test:phase7_2": "node --test tests/phase7_2_legacy_cert.test.js",
+    "test:staging": "node --test tests/staging_smoke.test.js",
+    "test:api": "node tests/api.test.js"
   },
   "keywords": [
     "mern",
@@ -20,6 +31,7 @@
   "license": "MIT",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "axios": "^1.20.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.2.0",
     "cors": "^2.8.5",
@@ -28,9 +40,11 @@
     "express-rate-limit": "^7.3.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.13.0",
     "mongoose": "^8.4.3",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.14",
+    "pdf-parse": "^1.1.1",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {

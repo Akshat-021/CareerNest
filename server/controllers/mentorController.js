@@ -1,11 +1,14 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Session = require('../models/Session');
+const CareerProfile = require('../models/CareerProfile');
 const { sendRealTimeNotification } = require('../config/socket');
 const { sendMail } = require('../config/mailer');
+const aiService = require('../services/gemini');
 
-// @desc    Get all approved mentors
+// @desc    Get all approved mentors with AI compatibility match calculations
 // @route   GET /api/mentors
-// @access  Public
+// @access  Public / Authenticated
 exports.getMentors = async (req, res, next) => {
   try {
     const { expertise, search } = req.query;
@@ -22,7 +25,26 @@ exports.getMentors = async (req, res, next) => {
       ];
     }
 
-    const mentors = await User.find(query).select('-password -refreshToken');
+    let mentors = await User.find(query).select('-password -refreshToken').lean();
+
+    // If user is authenticated as student, compute AI compatibility scores
+    if (req.user && req.user.role === 'student') {
+      const profile = await CareerProfile.findOne({ student: req.user.id }).lean();
+      const studentProfile = profile || { targetRole: req.user.studentProfile?.careerGoal || 'Software Engineer', skills: req.user.studentProfile?.skills || [] };
+
+      mentors = mentors.map(m => {
+        const matchData = aiService.calculateMentorMatch(m, studentProfile);
+        return {
+          ...m,
+          aiMatchScore: matchData.matchScore,
+          aiMatchReason: matchData.matchReason
+        };
+      });
+
+      // Sort by match score descending
+      mentors.sort((a, b) => (b.aiMatchScore || 0) - (a.aiMatchScore || 0));
+    }
+
     res.status(200).json({ success: true, count: mentors.length, mentors });
   } catch (error) {
     next(error);
@@ -108,36 +130,57 @@ exports.updateSessionStatus = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Session not found' });
     }
 
-    // Role safety checks
-    if (req.user.role === 'student' && status === 'approved') {
-      return res.status(403).json({ success: false, message: 'Only mentors can approve sessions' });
+    const mentorId = (session.mentor && session.mentor._id) ? session.mentor._id.toString() : session.mentor.toString();
+    const studentId = (session.student && session.student._id) ? session.student._id.toString() : session.student.toString();
+    const userId = req.user.id.toString();
+    const isMentor = userId === mentorId;
+    const isStudent = userId === studentId;
+    const isAdmin = req.user.role === 'admin';
+
+    // Strict resource ownership check (BOLA prevention)
+    if (!isMentor && !isStudent && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this mentorship session'
+      });
+    }
+
+    // Role-specific action constraints
+    if (isStudent && !isMentor && !isAdmin) {
+      if (status === 'approved' || status === 'completed') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only the assigned mentor or an administrator can approve or complete sessions'
+        });
+      }
     }
 
     if (status) session.status = status;
-    if (meetingLink) session.meetingLink = meetingLink;
+    if (meetingLink && (isMentor || isAdmin)) session.meetingLink = meetingLink;
     if (notes) session.notes = notes;
     if (date) session.date = date;
     if (time) session.time = time;
 
     // Auto-generate video link on approval if not provided
     if (status === 'approved' && !session.meetingLink) {
-      session.meetingLink = `https://meet.google.com/mst-${Math.random().toString(36).substring(2, 5)}-${Math.random().toString(36).substring(2, 5)}`;
+      session.meetingLink = `/mentorship-room/${session._id}`;
     }
 
     // Track earnings if session completed
-    if (status === 'completed' && req.user.role === 'mentor') {
-      const mentor = await User.findById(session.mentor);
-      // Increment earnings by mock value (e.g. $50 per session)
-      mentor.mentorProfile.earnings += 50;
-      await mentor.save();
+    if (status === 'completed' && (isMentor || req.user.role === 'mentor')) {
+      const mentorUser = await User.findById(mentorId);
+      if (mentorUser && mentorUser.mentorProfile) {
+        mentorUser.mentorProfile.earnings = (mentorUser.mentorProfile.earnings || 0) + 50;
+        await mentorUser.save();
+      }
     }
 
     await session.save();
 
     // Notify student/mentor
-    const recipientId = req.user.role === 'mentor' ? session.student._id : session.mentor._id;
-    const targetName = req.user.role === 'mentor' ? session.student.name : session.mentor.name;
-    const targetEmail = req.user.role === 'mentor' ? session.student.email : session.mentor.email;
+    const recipientId = isMentor ? studentId : mentorId;
+    const targetName = isMentor ? (session.student?.name || 'Student') : (session.mentor?.name || 'Mentor');
+    const targetEmail = isMentor ? (session.student?.email || '') : (session.mentor?.email || '');
 
     sendRealTimeNotification(recipientId, {
       title: `Session ${status.charAt(0).toUpperCase() + status.slice(1)}`,
@@ -145,12 +188,14 @@ exports.updateSessionStatus = async (req, res, next) => {
       type: 'booking'
     });
 
-    await sendMail({
-      to: targetEmail,
-      subject: `Mentorship Session Update: ${status.toUpperCase()}`,
-      text: `Hello ${targetName}, your scheduled session with ${req.user.name} was updated to status: ${status}. Meet URL: ${session.meetingLink || 'N/A'}. Date: ${new Date(session.date).toDateString()}, Time: ${session.time}.`,
-      html: `<h3>Session Update Notification</h3><p><b>Status:</b> ${status.toUpperCase()}</p><p><b>With:</b> ${req.user.name}</p><p><b>Scheduled Date:</b> ${new Date(session.date).toDateString()}</p><p><b>Scheduled Time:</b> ${session.time}</p><p><b>Video Call Link:</b> <a href="${session.meetingLink}">${session.meetingLink || 'N/A'}</a></p>`
-    });
+    if (targetEmail) {
+      await sendMail({
+        to: targetEmail,
+        subject: `Mentorship Session Update: ${status.toUpperCase()}`,
+        text: `Hello ${targetName}, your scheduled session with ${req.user.name} was updated to status: ${status}. Meeting: ${session.meetingLink || 'N/A'}. Date: ${new Date(session.date).toDateString()}, Time: ${session.time}.`,
+        html: `<h3>Session Update Notification</h3><p><b>Status:</b> ${status.toUpperCase()}</p><p><b>With:</b> ${req.user.name}</p><p><b>Scheduled Date:</b> ${new Date(session.date).toDateString()}</p><p><b>Scheduled Time:</b> ${session.time}</p><p><b>Meeting Link:</b> <a href="${session.meetingLink}">${session.meetingLink || 'N/A'}</a></p>`
+      });
+    }
 
     res.status(200).json({ success: true, message: `Session status updated to ${status}`, session });
   } catch (error) {
@@ -196,3 +241,60 @@ exports.rateSession = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Get single session details and verify authorization for room access
+// @route   GET /api/mentors/sessions/:id
+// @access  Private (Assigned Mentor, Student, or Admin)
+exports.getSessionById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ success: false, message: 'Mentorship session not found' });
+    }
+
+    const session = await Session.findById(id)
+      .populate('mentor', 'name email profileImage mentorProfile')
+      .populate('student', 'name email profileImage studentProfile');
+
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Mentorship session not found' });
+    }
+
+    const mentorId = (session.mentor && session.mentor._id) ? session.mentor._id.toString() : session.mentor.toString();
+    const studentId = (session.student && session.student._id) ? session.student._id.toString() : session.student.toString();
+    const userId = req.user.id.toString();
+
+    const isMentor = userId === mentorId;
+    const isStudent = userId === studentId;
+    const isAdmin = req.user.role === 'admin';
+
+    // Strict ownership verification (BOLA prevention)
+    if (!isMentor && !isStudent && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to access this mentorship session room'
+      });
+    }
+
+    if (session.status === 'rejected') {
+      return res.status(403).json({
+        success: false,
+        message: 'This mentorship session request was rejected and cannot be joined.',
+        status: session.status
+      });
+    }
+
+    if (session.status === 'completed') {
+      return res.status(410).json({
+        success: false,
+        message: 'This mentorship session has already been completed.',
+        status: session.status
+      });
+    }
+
+    res.status(200).json({ success: true, session });
+  } catch (error) {
+    next(error);
+  }
+};
+

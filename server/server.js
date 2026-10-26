@@ -16,6 +16,7 @@ const courseRoutes = require('./routes/courseRoutes');
 const mentorRoutes = require('./routes/mentorRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const platformRoutes = require('./routes/platformRoutes');
+const communityRoutes = require('./routes/communityRoutes');
 
 // Initialize app
 const app = express();
@@ -48,7 +49,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 100 : 2000, // Generous limit in development/test to prevent blocking multi-account browser verification
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests from this IP, please try again after 15 minutes' }
@@ -61,17 +62,36 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/mentors', mentorRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/platform', platformRoutes);
+app.use('/api/communities', communityRoutes);
 
 // Base route test
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the AI-Powered Course Recommendation & Mentorship Portal API' });
 });
 
+// Validate required secrets
+const requiredSecrets = ['JWT_SECRET', 'JWT_REFRESH_SECRET'];
+const missingSecrets = requiredSecrets.filter((secretKey) => !process.env[secretKey]);
+
+if (missingSecrets.length > 0) {
+  const errMsg = `[SECURITY CONFIG ERROR] Missing required environment variable(s): ${missingSecrets.join(', ')}. Authentication will fail without valid secrets.`;
+  if (process.env.NODE_ENV === 'production') {
+    console.error(`FATAL: ${errMsg}`);
+    process.exit(1);
+  } else {
+    console.warn(`WARNING: ${errMsg}`);
+  }
+}
+
 // Error handling middleware
 app.use(errorHandler);
 
-// Set Port and start server
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-});
+// Set Port and start server (standardized default backend port: 5001)
+const PORT = process.env.PORT || 5001;
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, () => {
+    console.log(`CareerNest server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  });
+}
+
+module.exports = { app, server };

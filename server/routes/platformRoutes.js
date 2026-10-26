@@ -10,6 +10,7 @@ const {
   issueCertificate,
   getCertificates,
   verifyCertificate,
+  getCareerPassport,
   getNotifications,
   markReadNotification,
   getStudentAnalytics,
@@ -17,12 +18,23 @@ const {
   getAdminAnalytics,
   approveMentor,
   getChatUsers,
-  getMessages
+  getMessages,
+  getJobApplications,
+  createJobApplication,
+  updateJobApplication,
+  deleteJobApplication,
+  getStudyPods,
+  createStudyPod,
+  joinStudyPod,
+  postPodMessage,
+  getMicroInternships,
+  submitMicroInternship
 } = require('../controllers/platformController');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, optionalProtect } = require('../middleware/auth');
 
-// Public certificate validation lookup
+// Public lookups
 router.get('/certificates/verify/:id', verifyCertificate);
+router.get('/passport/:slugOrId', optionalProtect, getCareerPassport);
 
 // Protected routes
 router.use(protect);
@@ -44,6 +56,22 @@ router.get('/certificates', getCertificates);
 // Notifications
 router.get('/notifications', getNotifications);
 router.put('/notifications/:id/read', markReadNotification);
+
+// Job Application Copilot
+router.get('/job-applications', getJobApplications);
+router.post('/job-applications', createJobApplication);
+router.put('/job-applications/:id', updateJobApplication);
+router.delete('/job-applications/:id', deleteJobApplication);
+
+// Peer Study Pods
+router.get('/study-pods', getStudyPods);
+router.post('/study-pods', createStudyPod);
+router.post('/study-pods/:id/join', joinStudyPod);
+router.post('/study-pods/:id/messages', postPodMessage);
+
+// AI Micro-Internships
+router.get('/micro-internships', getMicroInternships);
+router.post('/micro-internships/:id/submit', submitMicroInternship);
 
 // Role-Based Analytics
 router.get('/analytics/student', authorize('student'), getStudentAnalytics);

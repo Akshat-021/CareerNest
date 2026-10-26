@@ -4,7 +4,12 @@ const NotificationSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    index: true
+  },
+  recipient: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
   },
   title: {
     type: String,
@@ -25,6 +30,16 @@ const NotificationSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Synchronize user and recipient fields so queries matching either succeed seamlessly
+NotificationSchema.pre('validate', function(next) {
+  const targetUser = this.user || this.recipient;
+  if (targetUser) {
+    if (!this.user) this.user = targetUser;
+    if (!this.recipient) this.recipient = targetUser;
+  }
+  next();
 });
 
 module.exports = mongoose.model('Notification', NotificationSchema);

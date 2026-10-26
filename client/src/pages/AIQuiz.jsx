@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
-import { FiCheckSquare, FiAlertCircle, FiAward, FiBook } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiCheckSquare, FiAlertCircle, FiAward, FiBook, FiTerminal, FiCode, FiRefreshCw } from 'react-icons/fi';
 import api from '../services/api';
+import { Alert, FallbackDisclosure } from '../components/feedback';
+import { Button } from '../components/common';
 
 const AIQuiz = () => {
+  const navigate = useNavigate();
   const [topic, setTopic] = useState('React Hooks');
   const [difficulty, setDifficulty] = useState('Medium');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [quiz, setQuiz] = useState(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOpt, setSelectedOpt] = useState(null);
@@ -16,6 +21,7 @@ const AIQuiz = () => {
 
   const startQuiz = async () => {
     setLoading(true);
+    setError('');
     setQuiz(null);
     setCurrentIdx(0);
     setSelectedOpt(null);
@@ -30,10 +36,17 @@ const AIQuiz = () => {
         difficulty
       });
       if (res.data.success) {
-        setQuiz(res.data.quiz);
+        setQuiz({
+          ...res.data.quiz,
+          isSimulatedFallback: res.data.isSimulatedFallback ?? true,
+          aiEngine: res.data.aiEngine || (res.data.isSimulatedFallback ? 'Heuristic Career Simulation Engine' : 'Google Gemini AI')
+        });
+      } else {
+        setError(res.data.message || 'Failed to generate quiz.');
       }
     } catch (err) {
       console.error('Quiz creation failed:', err);
+      setError(err.response?.data?.message || 'Failed to generate quiz. Please verify network connection.');
     } finally {
       setLoading(false);
     }
@@ -79,36 +92,62 @@ const AIQuiz = () => {
         <p className="text-xs text-gray-400">Generate evaluation quizzes instantly based on course topics and test your knowledge to earn leaderboard points.</p>
       </div>
 
+      {error && (
+        <Alert
+          type="error"
+          title="Quiz Service Notice"
+          message={error}
+          action={
+            <Button size="sm" variant="outline" onClick={startQuiz}>
+              Retry
+            </Button>
+          }
+          onClose={() => setError('')}
+        />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* PARAMS CONTROL PANEL */}
         {!quiz && (
           <div className="lg:col-span-1 glass-panel p-5 rounded-2xl flex flex-col gap-4">
             <h3 className="font-bold text-sm flex items-center gap-2"><FiBook className="text-indigo-500" /> Quiz Settings</h3>
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] text-gray-400 font-bold uppercase">Topic/Theme</label>
-              <select value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full glass-input bg-transparent">
+              <label htmlFor="quiz-topic" className="text-[10px] text-gray-400 font-bold uppercase">Topic/Theme</label>
+              <select id="quiz-topic" value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full glass-input bg-transparent">
                 <option value="React Hooks" className="dark:bg-gray-900">React Hooks</option>
                 <option value="Mongoose Indexing" className="dark:bg-gray-900">Mongoose Indexing</option>
                 <option value="API Security" className="dark:bg-gray-900">API Security</option>
               </select>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] text-gray-400 font-bold uppercase">Difficulty</label>
-              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full glass-input bg-transparent">
+              <label htmlFor="quiz-difficulty" className="text-[10px] text-gray-400 font-bold uppercase">Difficulty</label>
+              <select id="quiz-difficulty" value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full glass-input bg-transparent">
                 <option value="Easy" className="dark:bg-gray-900">Easy</option>
                 <option value="Medium" className="dark:bg-gray-900">Medium</option>
                 <option value="Hard" className="dark:bg-gray-900">Hard</option>
               </select>
             </div>
-            <button onClick={startQuiz} disabled={loading} className="glass-button-primary w-full">
-              {loading ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> : 'Start Quiz'}
-            </button>
+            <Button
+              onClick={startQuiz}
+              disabled={loading}
+              isLoading={loading}
+              variant="primary"
+              className="w-full"
+            >
+              Start Quiz
+            </Button>
           </div>
         )}
 
         {/* ACTIVE QUESTIONS PANEL */}
         {quiz && !completed && (
           <div className="lg:col-span-2 flex flex-col gap-4">
+            <FallbackDisclosure
+              isSimulated={quiz.isSimulatedFallback ?? true}
+              engineName={quiz.aiEngine}
+              compact={true}
+            />
+
             <div className="glass-panel p-6 rounded-2xl flex flex-col gap-4">
               <div className="flex justify-between items-center border-b border-gray-200/50 dark:border-gray-800/50 pb-3">
                 <span className="text-[10px] bg-indigo-500/10 text-indigo-500 font-bold uppercase px-2.5 py-1 rounded-md">
@@ -153,9 +192,9 @@ const AIQuiz = () => {
 
               {answered && (
                 <div className="flex justify-end mt-4">
-                  <button onClick={handleNext} className="glass-button-primary">
+                  <Button onClick={handleNext} variant="primary" size="md">
                     {currentIdx === quiz.questions.length - 1 ? 'Finish Quiz' : 'Next Question'}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -165,6 +204,12 @@ const AIQuiz = () => {
         {/* RESULTS PANEL */}
         {completed && quiz && (
           <div className="lg:col-span-2 flex flex-col gap-4">
+            <FallbackDisclosure
+              isSimulated={quiz.isSimulatedFallback ?? true}
+              engineName={quiz.aiEngine}
+              compact={true}
+            />
+
             <div className="glass-panel p-6 rounded-2xl flex flex-col items-center text-center gap-5">
               <div className="w-16 h-16 bg-indigo-500/10 text-indigo-500 rounded-full flex items-center justify-center">
                 <FiAward size={32} />
@@ -183,9 +228,37 @@ const AIQuiz = () => {
                 </div>
               )}
 
-              <button onClick={() => setQuiz(null)} className="glass-button-secondary w-full">
-                Try Another Quiz
-              </button>
+              {/* CONNECTED CAREER WORKFLOW ACTIONS */}
+              <div className="w-full border-t border-gray-200/50 dark:border-gray-800/50 pt-5 flex flex-col gap-3">
+                <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">Recommended Next Steps:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate('/challenges')}
+                  >
+                    <FiCode className="mr-1.5 text-indigo-500" /> Coding Arena
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate('/ai-interview', { state: { technology: topic } })}
+                  >
+                    <FiTerminal className="mr-1.5 text-amber-500" /> Mock Interview
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate('/courses')}
+                  >
+                    <FiBook className="mr-1.5 text-emerald-500" /> Prep Courses
+                  </Button>
+                </div>
+              </div>
+
+              <Button onClick={() => setQuiz(null)} variant="secondary" className="w-full">
+                <FiRefreshCw className="mr-1.5" /> Try Another Quiz
+              </Button>
             </div>
           </div>
         )}

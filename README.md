@@ -1,6 +1,6 @@
-# Aura: AI-Powered Course Recommendation & Mentorship Portal
+# CareerNest: AI-Powered Course Recommendation & Mentorship Portal
 
-Aura is a modern SaaS-quality educational ecosystem built on the **MERN Stack** (MongoDB, Express, React, Node) with **Vite** and **Tailwind CSS**. It combines Artificial Intelligence core services, 1-on-1 expert mentorship slots, structured study roadmap timelines, resume ATS evaluations, and real-time Socket.IO direct messaging.
+CareerNest is a modern educational ecosystem built on the **MERN Stack** (MongoDB, Express, React, Node) with **Vite** and **Tailwind CSS**. It combines AI career intelligence services, 1-on-1 expert mentorship slots, structured study roadmap timelines, genuine resume text extraction and ATS evaluations, and real-time Socket.IO direct messaging.
 
 ---
 
@@ -8,12 +8,13 @@ Aura is a modern SaaS-quality educational ecosystem built on the **MERN Stack** 
 
 * **AI Course Recommendations**: Analyzes academic metrics (CGPA, branch, semester), learning styles, budget constraints, and career goals to recommend relevant courses.
 * **AI Career Roadmaps**: Generates custom timelines with weekly tasks, practice problems, milestones, and mock interview prompts (Web Dev, AI, Cloud, Cybersecurity, DevOps, Blockchain, UI/UX).
-* **AI Resume ATS Reviewer**: Evaluates resume PDFs/Docs to compute ATS compatibility scores, missing keywords, and suggest enhancements in Google's X-Y-Z formula.
+* **Genuine Resume Text Extraction & ATS Reviewer**: Extracts plain text from real PDF, DOCX, and TXT resumes using `pdf-parse` and `mammoth` to compute ATS compatibility scores, detect missing skills, and suggest quantified enhancements.
+* **Transparent AI Fallback**: Clear, transparent heuristic simulation when live Gemini AI API keys are deferred.
 * **AI Quiz Generator**: Creates 4-question topic-specific quizzes with instant explanations, awarding points to update student leaderboard rankings.
 * **Placement Probability Predictor**: Estimates placement readiness using a weighted metric algorithm, suggesting steps to fill key skill gaps.
-* **1-on-1 Mentorship Booking**: Search verified industry leaders by expertise, check ratings, and book Google Meet consultation slots.
-* **Socket.IO Chat System**: Multi-stage direct message streams with typing indicators, online status dots, and mock attachment support.
-* **QR-Certified Certificates**: Issue parchment-style completion certificates with secure verification links lookup.
+* **1-on-1 Mentorship Booking**: Search verified industry leaders by expertise, check ratings, and book Google Meet consultation slots with strict ownership authorization (BOLA-protected).
+* **Authenticated Socket.IO Chat System**: JWT-authenticated handshake deriving message identity strictly from verified user sessions with typing indicators, online presence, and persistent notifications.
+* **QR-Certified Certificates**: Issue completion certificates with secure verification links lookup.
 * **Discussion Forum**: Community board for students and mentors to ask questions, like, and reply to posts.
 
 ---
@@ -42,8 +43,8 @@ Aura is a modern SaaS-quality educational ecosystem built on the **MERN Stack** 
 │   ├── models/           # User, Course, Session, Message, Quiz Mongoose schemas
 │   ├── routes/           # Auth, Courses, Mentors, AI, Platform routes
 │   ├── scripts/          # Database seeding scripts
-│   ├── services/         # Gemini API + local simulation fallbacks
-│   ├── tests/            # Automated API testing scripts
+│   ├── services/         # Document parser, Gemini service + transparent fallbacks
+│   ├── tests/            # Automated regression and API test suites
 │   ├── uploads/          # Local static files storage
 │   ├── server.js         # Express main application launcher
 │   └── .env              # Environment configurations
@@ -67,16 +68,16 @@ npm install
 
 Create a `.env` file inside `server/` and fill in the following parameters:
 ```env
-PORT=5000
+PORT=5001
 MONGO_URI=mongodb://127.0.0.1:27017/ai-mentor-portal
-JWT_SECRET=supersecretjwtkeyforauthentication123!
-JWT_REFRESH_SECRET=supersecretjwtrefreshkeyforauthentication456!
+JWT_SECRET=your_secure_jwt_secret_key_minimum_32_chars!
+JWT_REFRESH_SECRET=your_secure_jwt_refresh_secret_key_minimum_32_chars!
 
 # (Optional) Nodemailer Config
 EMAIL_USER=developer@example.com
 EMAIL_PASS=demopassword123
 
-# (Optional) Google Gemini API Key - if blank, local AI fallback simulation runs
+# (Optional) Google Gemini API Key - if blank, transparent heuristic simulation runs
 GEMINI_API_KEY=
 
 # (Optional) Cloudinary Credentials - if blank, uploads fallback to server uploads/ directory
@@ -88,8 +89,8 @@ CLIENT_URL=http://localhost:5173
 NODE_ENV=development
 ```
 
-### 2. Seed the Database
-Run the pre-configured seed script to wipe the database and insert default accounts, courses, and challenges:
+### 2. Seed the Database (Optional)
+Run the pre-configured seed script to insert initial demo accounts, courses, and challenges:
 ```bash
 npm run seed
 ```
@@ -102,7 +103,7 @@ npm run seed
 ```bash
 npm run dev
 ```
-The backend server runs on `http://localhost:5000`.
+The backend development server runs on `http://localhost:5001`.
 
 ### 4. Configure the Frontend
 

@@ -4,13 +4,21 @@ const { sendMail } = require('../config/mailer');
 const { uploadToCloudinary } = require('../config/cloudinary');
 
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'supersecretjwtkeyforauthentication123!', {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is missing.');
+  }
+  return jwt.sign({ id }, secret, {
     expiresIn: '1d'
   });
 };
 
 const generateRefreshToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET || 'supersecretjwtrefreshkeyforauthentication456!', {
+  const refreshSecret = process.env.JWT_REFRESH_SECRET;
+  if (!refreshSecret) {
+    throw new Error('JWT_REFRESH_SECRET environment variable is missing.');
+  }
+  return jwt.sign({ id }, refreshSecret, {
     expiresIn: '7d'
   });
 };
@@ -51,7 +59,7 @@ exports.register = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: 'Registration successful. OTP sent to your email.',
-      ...(mailInfo && mailInfo.mock ? { devOtp: otp } : {})
+      ...(process.env.NODE_ENV !== 'production' && mailInfo && mailInfo.mock ? { devOtp: otp } : {})
     });
   } catch (error) {
     next(error);
@@ -136,7 +144,7 @@ exports.resendOtp = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'New OTP sent to email',
-      ...(mailInfo && mailInfo.mock ? { devOtp: otp } : {})
+      ...(process.env.NODE_ENV !== 'production' && mailInfo && mailInfo.mock ? { devOtp: otp } : {})
     });
   } catch (error) {
     next(error);
@@ -222,7 +230,11 @@ exports.refresh = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Refresh token required' });
     }
 
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'supersecretjwtrefreshkeyforauthentication456!');
+    const refreshSecret = process.env.JWT_REFRESH_SECRET;
+    if (!refreshSecret) {
+      throw new Error('JWT_REFRESH_SECRET environment variable is missing.');
+    }
+    const decoded = jwt.verify(refreshToken, refreshSecret);
     const user = await User.findById(decoded.id);
 
     if (!user || user.refreshToken !== refreshToken) {
@@ -262,14 +274,18 @@ exports.forgotPassword = async (req, res, next) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    await sendMail({
+    const mailInfo = await sendMail({
       to: user.email,
-      subject: 'Reset your AI Mentor Account Password',
+      subject: 'Reset your CareerNest Account Password',
       text: `Use this OTP to reset your password: ${otp}. It expires in 10 minutes.`,
       html: `<h3>Reset Password Request</h3><p>Your OTP to reset password is: <b>${otp}</b></p>`
     });
 
-    res.status(200).json({ success: true, message: 'Password reset OTP sent to email' });
+    res.status(200).json({
+      success: true,
+      message: 'Password reset OTP sent to email',
+      ...(process.env.NODE_ENV !== 'production' && mailInfo && mailInfo.mock ? { devOtp: otp } : {})
+    });
   } catch (error) {
     next(error);
   }

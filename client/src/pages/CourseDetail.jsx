@@ -10,9 +10,12 @@ const CourseDetail = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('modules');
   
-  // Progress states
+  // Enrollment & Progress states
+  const [enrollment, setEnrollment] = useState(null);
+  const [enrolling, setEnrolling] = useState(false);
   const [completedModules, setCompletedModules] = useState({});
   const [claimLoading, setClaimLoading] = useState(false);
+  const [claimError, setClaimError] = useState('');
   const [certIssued, setCertIssued] = useState(null);
 
   // Review states
@@ -26,6 +29,26 @@ const CourseDetail = () => {
       if (res.data.success) {
         setCourse(res.data.course);
       }
+      try {
+        const enrollRes = await api.get(`/api/courses/${id}/enrollment`);
+        if (enrollRes.data?.success && enrollRes.data?.enrolled) {
+          const enr = enrollRes.data.enrollment;
+          setEnrollment(enr);
+          if (enr.certificate) {
+            setCertIssued(enr.certificate);
+          }
+          if (enr.completedModules) {
+            const map = {};
+            enr.completedModules.forEach((item) => {
+              const mId = item.module?._id || item.module;
+              if (mId) map[mId] = true;
+            });
+            setCompletedModules(map);
+          }
+        }
+      } catch (err) {
+        // Enrollment fetch skipped for guest/unauthenticated views
+      }
     } catch (err) {
       console.error('Failed to get course info:', err);
     } finally {
@@ -37,29 +60,56 @@ const CourseDetail = () => {
     fetchCourse();
   }, [id]);
 
-  const toggleModuleCompletion = (modId) => {
-    setCompletedModules((prev) => ({
-      ...prev,
-      [modId]: !prev[modId]
-    }));
+  const handleEnroll = async () => {
+    setEnrolling(true);
+    setClaimError('');
+    try {
+      const res = await api.post(`/api/courses/${id}/enroll`);
+      if (res.data?.success) {
+        setEnrollment(res.data.enrollment);
+      }
+    } catch (err) {
+      setClaimError(err.response?.data?.message || 'Failed to enroll in course');
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  const toggleModuleCompletion = async (modId) => {
+    if (!enrollment) {
+      setClaimError('Please enroll in the course first to record progress.');
+      return;
+    }
+    setClaimError('');
+    try {
+      const res = await api.post(`/api/courses/${id}/modules/${modId}/complete`);
+      if (res.data?.success) {
+        setEnrollment(res.data.enrollment);
+        setCompletedModules((prev) => ({
+          ...prev,
+          [modId]: true
+        }));
+      }
+    } catch (err) {
+      setClaimError(err.response?.data?.message || 'Failed to record module completion');
+    }
   };
 
   const isAllModulesCompleted = () => {
-    if (!course || !course.modules.length) return false;
+    if (!course || !course.modules || !course.modules.length) return false;
     return course.modules.every((mod) => completedModules[mod._id]);
   };
 
   const handleClaimCertificate = async () => {
     setClaimLoading(true);
+    setClaimError('');
     try {
-      const res = await api.post('/api/platform/certificates', {
-        courseName: course.title
-      });
+      const res = await api.post(`/api/courses/${id}/claim-certificate`);
       if (res.data.success) {
         setCertIssued(res.data.certificate);
       }
     } catch (err) {
-      console.error('Failed to claim certificate:', err);
+      setClaimError(err.response?.data?.message || 'Failed to claim certificate');
     } finally {
       setClaimLoading(false);
     }
@@ -233,42 +283,70 @@ const CourseDetail = () => {
             <div className="p-3.5 bg-indigo-500/10 text-indigo-500 rounded-full mx-auto w-fit"><FiAward size={24} /></div>
             <div>
               <h3 className="font-bold text-sm">Course Completion</h3>
-              <p className="text-[10px] text-gray-400 mt-0.5">Complete all curriculum video tasks to claim your validation certificate.</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                {enrollment ? 'Complete all curriculum video tasks to claim your validation certificate.' : 'Enroll in this course to start tracking your curriculum progress.'}
+              </p>
             </div>
 
-            {/* Progress indicators */}
-            <div className="w-full bg-gray-200 dark:bg-gray-800 h-2 rounded-full overflow-hidden mt-2">
-              <div
-                className="bg-indigo-500 h-full transition-all duration-300"
-                style={{
-                  width: `${(Object.keys(completedModules).filter(k => completedModules[k]).length / course.modules.length) * 100}%`
-                }}
-              />
-            </div>
-
-            {certIssued ? (
-              <div className="flex flex-col gap-3 items-center mt-2 border border-emerald-500/20 bg-emerald-500/5 p-4 rounded-xl">
-                <FiCheckCircle className="text-emerald-500" size={24} />
-                <div className="text-xs font-bold text-emerald-500">Certificate Claimed!</div>
-                <button
-                  onClick={() => navigate('/certificates')}
-                  className="text-xs text-indigo-500 font-semibold hover:underline"
-                >
-                  View Certificates
-                </button>
+            {claimError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-xl text-left">
+                {claimError}
               </div>
-            ) : (
+            )}
+
+            {!enrollment ? (
               <button
-                onClick={handleClaimCertificate}
-                disabled={claimLoading || !isAllModulesCompleted()}
-                className="glass-button-primary w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                onClick={handleEnroll}
+                disabled={enrolling}
+                className="glass-button-primary w-full flex items-center justify-center gap-2 mt-2"
               >
-                {claimLoading ? (
+                {enrolling ? (
                   <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
                 ) : (
-                  'Claim Course Certificate'
+                  'Enroll in Course'
                 )}
               </button>
+            ) : (
+              <>
+                {/* Progress indicators */}
+                <div className="flex justify-between items-center text-[10px] text-gray-400 font-semibold px-1">
+                  <span>Progress</span>
+                  <span>{enrollment.progressPercent || 0}% ({Object.keys(completedModules).filter(k => completedModules[k]).length}/{course.modules.length} modules)</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-indigo-500 h-full transition-all duration-300"
+                    style={{
+                      width: `${enrollment.progressPercent || ((Object.keys(completedModules).filter(k => completedModules[k]).length / (course.modules.length || 1)) * 100)}%`
+                    }}
+                  />
+                </div>
+
+                {certIssued ? (
+                  <div className="flex flex-col gap-3 items-center mt-2 border border-emerald-500/20 bg-emerald-500/5 p-4 rounded-xl">
+                    <FiCheckCircle className="text-emerald-500" size={24} />
+                    <div className="text-xs font-bold text-emerald-500">Certificate Claimed!</div>
+                    <button
+                      onClick={() => navigate('/certificates')}
+                      className="text-xs text-indigo-500 font-semibold hover:underline"
+                    >
+                      View Certificates
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleClaimCertificate}
+                    disabled={claimLoading || !isAllModulesCompleted()}
+                    className="glass-button-primary w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                  >
+                    {claimLoading ? (
+                      <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                    ) : (
+                      'Claim Course Certificate'
+                    )}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

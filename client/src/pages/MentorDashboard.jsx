@@ -3,8 +3,10 @@ import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend
 } from 'chart.js';
-import { FiDollarSign, FiStar, FiCalendar, FiBook, FiCheck, FiX, FiCalendar as FiCalendarIcon, FiAlertCircle } from 'react-icons/fi';
+import { FiDollarSign, FiStar, FiCalendar, FiBook, FiCheck, FiX, FiCalendar as FiCalendarIcon, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
 import api from '../services/api';
+import { Alert, EmptyState } from '../components/feedback';
+import { Button, Spinner } from '../components/common';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -13,19 +15,41 @@ const MentorDashboard = () => {
   const [analytics, setAnalytics] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [actionMsg, setActionMsg] = useState('');
+  const [error, setError] = useState('');
+  const [statusError, setStatusError] = useState('');
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [updatingId, setUpdatingId] = useState(null);
 
   const fetchMentorDashboard = async () => {
+    if (isRetrying) return;
+    setIsRetrying(true);
+    setError('');
     try {
-      const [analyticsRes, sessionsRes] = await Promise.all([
+      const [analyticsRes, sessionsRes] = await Promise.allSettled([
         api.get('/api/platform/analytics/mentor'),
         api.get('/api/mentors/sessions')
       ]);
-      if (analyticsRes.data.success) setAnalytics(analyticsRes.data.analytics);
-      if (sessionsRes.data.success) setSessions(sessionsRes.data.sessions);
+
+      let hasSuccess = false;
+      if (analyticsRes.status === 'fulfilled' && analyticsRes.value.data.success) {
+        setAnalytics(analyticsRes.value.data.analytics);
+        hasSuccess = true;
+      }
+      if (sessionsRes.status === 'fulfilled' && sessionsRes.value.data.success) {
+        setSessions(sessionsRes.value.data.sessions || []);
+        hasSuccess = true;
+      }
+
+      if (!hasSuccess && (analyticsRes.status === 'rejected' || sessionsRes.status === 'rejected')) {
+        const err = analyticsRes.reason || sessionsRes.reason;
+        setError(err?.response?.data?.message || 'Unable to load mentor dashboard data. Please verify your connection.');
+      }
     } catch (err) {
       console.error('Failed to load mentor dashboard:', err);
+      setError(err.response?.data?.message || 'Failed to load mentor dashboard.');
     } finally {
       setLoading(false);
+      setIsRetrying(false);
     }
   };
 
@@ -35,22 +59,52 @@ const MentorDashboard = () => {
 
   const handleUpdateStatus = async (sessionId, status) => {
     setActionMsg('');
+    setStatusError('');
+    setUpdatingId(sessionId);
     try {
       const res = await api.put(`/api/mentors/sessions/${sessionId}`, { status });
       if (res.data.success) {
         setActionMsg(`Session successfully updated to: ${status}!`);
-        fetchMentorDashboard(); // Refresh
-        setTimeout(() => setActionMsg(''), 2000);
+        fetchMentorDashboard();
+        setTimeout(() => setActionMsg(''), 3000);
+      } else {
+        setStatusError(res.data.message || 'Unable to update session status.');
       }
     } catch (err) {
       console.error('Failed to update booking status:', err);
+      setStatusError(err.response?.data?.message || 'Failed to update booking status.');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex-1 flex items-center justify-center py-24">
+        <Spinner size="lg" message="Loading mentor workspace & booking statistics..." />
+      </div>
+    );
+  }
+
+  if (error && !analytics && sessions.length === 0) {
+    return (
+      <div className="py-12">
+        <EmptyState
+          icon={FiAlertCircle}
+          title="Mentor Dashboard Unavailable"
+          description={error}
+          action={
+            <Button
+              variant="primary"
+              size="md"
+              onClick={fetchMentorDashboard}
+              disabled={isRetrying}
+              isLoading={isRetrying}
+            >
+              Retry Loading Dashboard
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -75,15 +129,52 @@ const MentorDashboard = () => {
   return (
     <div className="flex flex-col gap-6">
       {/* HEADER */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Mentor Dashboard</h1>
-        <p className="text-xs text-gray-400">Review student bookings, track your monthly payouts, and update slots.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Mentor Dashboard</h1>
+          <p className="text-xs text-gray-400">Review student bookings, track your monthly payouts, and update slots.</p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={fetchMentorDashboard}
+          disabled={isRetrying}
+          isLoading={isRetrying}
+          aria-label="Refresh mentor dashboard"
+        >
+          <FiRefreshCw className="mr-1.5" /> Refresh
+        </Button>
       </div>
 
+      {error && (
+        <Alert
+          type="error"
+          title="Dashboard Sync Notice"
+          message={error}
+          action={
+            <Button size="sm" variant="outline" onClick={fetchMentorDashboard} disabled={isRetrying}>
+              Retry Sync
+            </Button>
+          }
+          onClose={() => setError('')}
+        />
+      )}
+
       {actionMsg && (
-        <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 rounded-xl text-xs flex items-center gap-2">
-          <FiAlertCircle size={16} /> <span>{actionMsg}</span>
-        </div>
+        <Alert
+          type="success"
+          message={actionMsg}
+          onClose={() => setActionMsg('')}
+        />
+      )}
+
+      {statusError && (
+        <Alert
+          type="error"
+          title="Action Failed"
+          message={statusError}
+          onClose={() => setStatusError('')}
+        />
       )}
 
       {/* STAT CARDS */}
@@ -143,23 +234,28 @@ const MentorDashboard = () => {
                   <div>
                     <h4 className="text-xs font-bold">{s.student?.name}</h4>
                     <p className="text-[10px] text-indigo-500 font-semibold mt-0.5">{s.time} | {new Date(s.date).toDateString()}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">"{s.notes}"</p>
+                    {s.notes && <p className="text-[10px] text-gray-400 mt-1">"{s.notes}"</p>}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="primary"
                       onClick={() => handleUpdateStatus(s._id, 'approved')}
-                      className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 rounded-xl transition-all"
-                      title="Approve"
+                      disabled={updatingId === s._id}
+                      isLoading={updatingId === s._id}
+                      aria-label="Approve booking"
                     >
-                      <FiCheck size={16} />
-                    </button>
-                    <button
+                      <FiCheck size={14} className="mr-1" /> Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
                       onClick={() => handleUpdateStatus(s._id, 'rejected')}
-                      className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 rounded-xl transition-all"
-                      title="Reject"
+                      disabled={updatingId === s._id}
+                      aria-label="Reject booking"
                     >
-                      <FiX size={16} />
-                    </button>
+                      <FiX size={14} className="mr-1" /> Reject
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -178,15 +274,22 @@ const MentorDashboard = () => {
                 <div key={s._id} className="p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl flex flex-col gap-2 border border-gray-200/50 dark:border-gray-800/50">
                   <div className="flex justify-between items-center">
                     <h4 className="text-xs font-bold">{s.student?.name}</h4>
-                    <button
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => handleUpdateStatus(s._id, 'completed')}
-                      className="text-[10px] bg-indigo-500/10 text-indigo-500 px-2.5 py-1 rounded-md font-semibold hover:bg-indigo-500/20"
+                      disabled={updatingId === s._id}
+                      isLoading={updatingId === s._id}
                     >
                       Mark Completed
-                    </button>
+                    </Button>
                   </div>
                   <p className="text-[10px] text-indigo-500 font-semibold">{s.time} | {new Date(s.date).toDateString()}</p>
-                  <p className="text-[10px] text-gray-400 truncate">Meeting URL: <a href={s.meetingLink} target="_blank" rel="noreferrer" className="text-indigo-500 hover:underline">{s.meetingLink}</a></p>
+                  {s.meetingLink && (
+                    <p className="text-[10px] text-gray-400 truncate">
+                      Meeting URL: <a href={s.meetingLink} target="_blank" rel="noreferrer" className="text-indigo-500 hover:underline">{s.meetingLink}</a>
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

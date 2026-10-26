@@ -3,8 +3,10 @@ import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend
 } from 'chart.js';
-import { FiUsers, FiBookOpen, FiDollarSign, FiCheck, FiX, FiFileText } from 'react-icons/fi';
+import { FiUsers, FiBookOpen, FiDollarSign, FiCheck, FiX, FiFileText, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
 import api from '../services/api';
+import { Alert, EmptyState } from '../components/feedback';
+import { Button, Spinner } from '../components/common';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
@@ -12,17 +14,28 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
   const [actionMsg, setActionMsg] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [error, setError] = useState('');
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
 
   const fetchAdminDashboard = async () => {
+    if (isRetrying) return;
+    setIsRetrying(true);
+    setError('');
     try {
       const res = await api.get('/api/platform/analytics/admin');
       if (res.data.success) {
         setAnalytics(res.data.analytics);
+      } else {
+        setError(res.data.message || 'Failed to retrieve administrative analytics.');
       }
     } catch (err) {
       console.error('Failed to load admin panel statistics:', err);
+      setError(err.response?.data?.message || 'Failed to load administrative analytics. Please verify permissions and connection.');
     } finally {
       setLoading(false);
+      setIsRetrying(false);
     }
   };
 
@@ -32,25 +45,55 @@ const AdminDashboard = () => {
 
   const handleApproveMentor = async (mentorId, approve) => {
     setActionMsg('');
+    setActionError('');
+    setProcessingId(mentorId);
     try {
       const res = await api.post('/api/platform/admin/approve-mentor', {
         mentorId,
         approve
       });
       if (res.data.success) {
-        setActionMsg(res.data.message);
-        fetchAdminDashboard(); // Refresh
-        setTimeout(() => setActionMsg(''), 2000);
+        setActionMsg(res.data.message || `Mentor verification successfully ${approve ? 'approved' : 'rejected'}.`);
+        fetchAdminDashboard();
+        setTimeout(() => setActionMsg(''), 3000);
+      } else {
+        setActionError(res.data.message || 'Unable to update mentor verification status.');
       }
     } catch (err) {
       console.error('Failed to approve mentor:', err);
+      setActionError(err.response?.data?.message || 'Failed to update mentor verification status.');
+    } finally {
+      setProcessingId(null);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex-1 flex items-center justify-center py-24">
+        <Spinner size="lg" message="Loading administrative metrics and system status..." />
+      </div>
+    );
+  }
+
+  if (error && !analytics) {
+    return (
+      <div className="py-12">
+        <EmptyState
+          icon={FiAlertCircle}
+          title="Administrative Metrics Unavailable"
+          description={error}
+          action={
+            <Button
+              variant="primary"
+              size="md"
+              onClick={fetchAdminDashboard}
+              disabled={isRetrying}
+              isLoading={isRetrying}
+            >
+              Retry Loading Dashboard
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -74,15 +117,52 @@ const AdminDashboard = () => {
   return (
     <div className="flex flex-col gap-6">
       {/* HEADER */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-        <p className="text-xs text-gray-400">Monitor system analytics, verify pending mentors, and review revenue cut allocations.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+          <p className="text-xs text-gray-400">Monitor system analytics, verify pending mentors, and review revenue cut allocations.</p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={fetchAdminDashboard}
+          disabled={isRetrying}
+          isLoading={isRetrying}
+          aria-label="Refresh admin metrics"
+        >
+          <FiRefreshCw className="mr-1.5" /> Refresh
+        </Button>
       </div>
 
+      {error && (
+        <Alert
+          type="error"
+          title="Admin Sync Notice"
+          message={error}
+          action={
+            <Button size="sm" variant="outline" onClick={fetchAdminDashboard} disabled={isRetrying}>
+              Retry Sync
+            </Button>
+          }
+          onClose={() => setError('')}
+        />
+      )}
+
       {actionMsg && (
-        <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 rounded-xl text-xs">
-          <span>{actionMsg}</span>
-        </div>
+        <Alert
+          type="success"
+          message={actionMsg}
+          onClose={() => setActionMsg('')}
+        />
+      )}
+
+      {actionError && (
+        <Alert
+          type="error"
+          title="Operation Notice"
+          message={actionError}
+          onClose={() => setActionError('')}
+        />
       )}
 
       {/* STAT CARDS */}
@@ -140,21 +220,28 @@ const AdminDashboard = () => {
                 <div className="flex flex-col gap-1 text-xs">
                   <h4 className="font-bold">{m.name}</h4>
                   <p className="text-gray-400">{m.email}</p>
-                  <p className="text-[10px] text-indigo-500 mt-1 font-semibold">Expertise: {m.mentorProfile?.expertise.join(', ')}</p>
+                  <p className="text-[10px] text-indigo-500 mt-1 font-semibold">Expertise: {m.mentorProfile?.expertise?.join(', ')}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
+                    size="sm"
+                    variant="primary"
                     onClick={() => handleApproveMentor(m._id, true)}
-                    className="px-3.5 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1 hover:bg-emerald-600 transition-all"
+                    disabled={processingId === m._id}
+                    isLoading={processingId === m._id}
+                    aria-label={`Verify mentor ${m.name}`}
                   >
-                    <FiCheck /> Verify
-                  </button>
-                  <button
+                    <FiCheck className="mr-1" /> Verify
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
                     onClick={() => handleApproveMentor(m._id, false)}
-                    className="px-3.5 py-1.5 bg-rose-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1 hover:bg-rose-600 transition-all"
+                    disabled={processingId === m._id}
+                    aria-label={`Reject mentor ${m.name}`}
                   >
-                    <FiX /> Reject
-                  </button>
+                    <FiX className="mr-1" /> Reject
+                  </Button>
                 </div>
               </div>
             ))}

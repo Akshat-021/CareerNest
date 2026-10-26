@@ -19,16 +19,18 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // Connect socket pointing to backend
+    // Connect authenticated socket pointing to backend
+    const token = localStorage.getItem('accessToken');
     const targetUrl = import.meta.env.VITE_BACKEND_URL || (window.location.origin.includes('5173') ? 'http://localhost:5001' : window.location.origin);
     const newSocket = io(targetUrl, {
-      transports: ['websocket'],
-      upgrade: false
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      upgrade: true
     });
 
     setSocket(newSocket);
 
-    // Identify user
+    // Identify user (for backwards compatibility)
     newSocket.emit('join_user', user._id);
 
     // Online status event listener

@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { FiCompass, FiCpu, FiCheckSquare, FiTerminal, FiBookOpen } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiCompass, FiCpu, FiCheckSquare, FiTerminal, FiBookOpen, FiArrowRight } from 'react-icons/fi';
 import api from '../services/api';
+import { FallbackDisclosure, Alert } from '../components/feedback';
+import { Button } from '../components/common';
 
 const AIRoadmap = () => {
+  const navigate = useNavigate();
   const [roadmaps, setRoadmaps] = useState([]);
   const [selectedTrack, setSelectedTrack] = useState('Web Development');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [activeRoadmap, setActiveRoadmap] = useState(null);
 
   const tracks = [
@@ -17,8 +22,8 @@ const AIRoadmap = () => {
     try {
       const res = await api.get('/api/ai/roadmaps');
       if (res.data.success) {
-        setRoadmaps(res.data.roadmaps);
-        if (res.data.roadmaps.length > 0) {
+        setRoadmaps(res.data.roadmaps || []);
+        if (res.data.roadmaps && res.data.roadmaps.length > 0) {
           setActiveRoadmap(res.data.roadmaps[0]);
         }
       }
@@ -33,14 +38,21 @@ const AIRoadmap = () => {
 
   const handleGenerateRoadmap = async () => {
     setLoading(true);
+    setError('');
     try {
       const res = await api.post('/api/ai/roadmap', { track: selectedTrack });
       if (res.data.success) {
-        setActiveRoadmap(res.data.roadmap);
+        const enrichedRoadmap = {
+          ...res.data.roadmap,
+          isSimulatedFallback: res.data.isSimulatedFallback ?? true,
+          aiEngine: res.data.aiEngine || 'Heuristic Career Simulation Engine'
+        };
+        setActiveRoadmap(enrichedRoadmap);
         fetchUserRoadmaps(); // Refresh historical list
       }
     } catch (err) {
       console.error('Failed to generate roadmap:', err);
+      setError(err.response?.data?.message || 'Failed to generate roadmap. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -110,6 +122,15 @@ const AIRoadmap = () => {
 
       {/* ROADMAP TIMELINE VISUALIZATION */}
       <div className="lg:col-span-3">
+        {error && (
+          <Alert
+            type="error"
+            title="Roadmap Generation Error"
+            message={error}
+            onClose={() => setError('')}
+            className="mb-4"
+          />
+        )}
         {loading ? (
           <div className="glass-panel rounded-2xl p-10 flex flex-col items-center justify-center gap-4 py-24">
             <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
@@ -129,6 +150,13 @@ const AIRoadmap = () => {
                 <p>Level: <span className="font-semibold text-gray-700 dark:text-gray-200">{activeRoadmap.difficulty}</span></p>
               </div>
             </div>
+
+            {/* AI Fallback Disclosure */}
+            <FallbackDisclosure
+              isSimulated={activeRoadmap.isSimulatedFallback ?? true}
+              engineName={activeRoadmap.aiEngine || (activeRoadmap.isSimulatedFallback ? 'Heuristic Career Simulation Engine' : 'Google Gemini AI')}
+              compact={true}
+            />
 
             {/* TIMELINE TREE */}
             <div className="relative border-l-2 border-indigo-500/20 pl-6 ml-4 flex flex-col gap-8 py-4">
@@ -192,6 +220,30 @@ const AIRoadmap = () => {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Contextual Next Steps */}
+            <div className="mt-2 pt-4 border-t border-gray-200/50 dark:border-gray-800/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Ready to put this curriculum to practice?</h4>
+                <p className="text-[11px] text-gray-500">Practice live interviews or take courses aligned with your {activeRoadmap.track} track.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate('/courses')}
+                >
+                  <FiBookOpen className="mr-1.5" /> Prep Courses
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => navigate('/ai-interview', { state: { role: activeRoadmap.track } })}
+                >
+                  <FiTerminal className="mr-1.5" /> Practice Interview
+                </Button>
+              </div>
             </div>
           </div>
         ) : (

@@ -4,14 +4,16 @@ const {
   getMentors,
   bookSession,
   getSessions,
+  getSessionById,
   updateSessionStatus,
   rateSession
 } = require('../controllers/mentorController');
-const { protect } = require('../middleware/auth');
+const { protect, optionalProtect } = require('../middleware/auth');
 
-router.get('/', getMentors);
+router.get('/', optionalProtect, getMentors);
 router.post('/book', protect, bookSession);
 router.get('/sessions', protect, getSessions);
+router.get('/sessions/:id', protect, getSessionById);
 router.put('/sessions/:id', protect, updateSessionStatus);
 router.post('/sessions/:id/review', protect, rateSession);
 

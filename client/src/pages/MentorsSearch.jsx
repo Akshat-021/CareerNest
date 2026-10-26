@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiUser, FiSearch, FiCalendar, FiClock, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
+import { FiUser, FiSearch, FiCalendar, FiClock, FiAlertCircle, FiCheckCircle, FiShield, FiTrendingUp } from 'react-icons/fi';
 import api from '../services/api';
 
 const MentorsSearch = () => {
@@ -75,8 +75,15 @@ const MentorsSearch = () => {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Search Expert Mentors</h1>
-          <p className="text-xs text-gray-400">Book real-time 1-on-1 calls with industry leaders to clear doubts and get career guidance.</p>
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-indigo-500/10 text-indigo-500 rounded-xl">
+              <FiUser size={22} />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">AI Mentor Compatibility Matching</h1>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            Discover verified industry leaders ranked by <b>AI Compatibility %</b> matching your target role and critical skill gaps.
+          </p>
         </div>
       </div>
 
@@ -98,11 +105,11 @@ const MentorsSearch = () => {
             onChange={(e) => setExpertise(e.target.value)}
             className="w-full glass-input bg-transparent"
           >
-            <option value="" className="dark:bg-gray-900">All Expertise</option>
+            <option value="" className="dark:bg-gray-900">All Domains</option>
             <option value="React" className="dark:bg-gray-900">React & Frontend</option>
             <option value="NodeJS" className="dark:bg-gray-900">NodeJS & APIs</option>
-            <option value="Machine Learning" className="dark:bg-gray-900">Machine Learning</option>
-            <option value="System Design" className="dark:bg-gray-900">System Design</option>
+            <option value="Machine Learning" className="dark:bg-gray-900">Machine Learning & Data</option>
+            <option value="System Design" className="dark:bg-gray-900">System Design & Cloud</option>
           </select>
         </div>
       </div>
@@ -117,28 +124,50 @@ const MentorsSearch = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mentors.map((m) => (
-            <div key={m._id} className="glass-panel p-5 rounded-2xl flex flex-col justify-between gap-4 hover:shadow-lg transition-all duration-200">
+            <div
+              key={m._id}
+              className="glass-panel p-6 rounded-3xl flex flex-col justify-between gap-4 hover:shadow-xl hover:border-indigo-500/30 transition-all duration-200 border border-indigo-500/10"
+            >
               <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3 border-b border-gray-250/20 dark:border-gray-800/25 pb-3">
+                {/* AI MATCH BADGE */}
+                {m.aiMatchScore && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                      <FiTrendingUp size={11} /> {m.aiMatchScore}% AI Match
+                    </span>
+                    <span className="text-[10px] text-gray-400">Verified Mentor</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800/50 pb-3">
                   <img
                     src={m.profileImage || 'https://via.placeholder.com/150'}
                     alt={m.name}
-                    className="w-12 h-12 rounded-full object-cover border border-indigo-500/10"
+                    className="w-12 h-12 rounded-2xl object-cover border border-indigo-500/20 shadow-xs"
                   />
                   <div>
-                    <h3 className="font-bold text-sm">{m.name}</h3>
+                    <h3 className="font-bold text-sm text-gray-900 dark:text-white">{m.name}</h3>
                     <div className="flex items-center gap-1 mt-0.5 text-xs text-amber-500">
-                      <span>★</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{m.mentorProfile.rating.toFixed(1)}</span>
-                      <span className="text-[10px] text-gray-400">({m.mentorProfile.reviewsCount})</span>
+                      <span>★</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{m.mentorProfile?.rating ? m.mentorProfile.rating.toFixed(1) : '5.0'}</span>
+                      <span className="text-[10px] text-gray-400">({m.mentorProfile?.reviewsCount || 0} reviews)</span>
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed min-h-[40px] line-clamp-3">{m.mentorProfile.bio}</p>
+
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">
+                  {m.mentorProfile?.bio}
+                </p>
+
+                {m.aiMatchReason && (
+                  <p className="text-[11px] text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 p-2 rounded-xl border border-indigo-500/10 leading-snug">
+                    💡 <b>Why Match:</b> {m.aiMatchReason}
+                  </p>
+                )}
 
                 {/* Expertise tags */}
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {m.mentorProfile.expertise.map((exp, idx) => (
-                    <span key={idx} className="text-[9px] font-bold bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 px-2 py-0.5 rounded-full">
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {m.mentorProfile?.expertise?.map((exp, idx) => (
+                    <span key={idx} className="text-[9px] font-bold bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 px-2.5 py-0.5 rounded-full">
                       {exp}
                     </span>
                   ))}
@@ -147,9 +176,9 @@ const MentorsSearch = () => {
 
               <button
                 onClick={() => setBookingMentor(m)}
-                className="glass-button-primary w-full text-center"
+                className="glass-button-primary w-full text-center text-xs py-2.5"
               >
-                Schedule Session
+                Schedule 1-on-1 Session
               </button>
             </div>
           ))}
@@ -159,8 +188,8 @@ const MentorsSearch = () => {
       {/* BOOKING MODAL POPUP */}
       {bookingMentor && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md glass-panel rounded-2xl p-6 shadow-2xl relative">
-            <h3 className="font-bold text-base border-b border-gray-200/50 dark:border-gray-850/50 pb-3 mb-4">
+          <div className="w-full max-w-md glass-panel rounded-3xl p-6 shadow-2xl relative">
+            <h3 className="font-bold text-base border-b border-gray-200/50 dark:border-gray-800/50 pb-3 mb-4">
               Book Call with {bookingMentor.name}
             </h3>
 
@@ -202,7 +231,10 @@ const MentorsSearch = () => {
                     className="w-full pl-11 glass-input bg-transparent"
                   >
                     <option value="" className="dark:bg-gray-900">Select slot time</option>
-                    {bookingMentor.mentorProfile.availableSlots.map((s, idx) => (
+                    {(bookingMentor.mentorProfile?.availableSlots?.length > 0
+                      ? bookingMentor.mentorProfile.availableSlots
+                      : [{ day: 'Monday', time: '14:00 - 15:00' }, { day: 'Wednesday', time: '16:00 - 17:00' }, { day: 'Friday', time: '18:00 - 19:00' }]
+                    ).map((s, idx) => (
                       <option key={idx} value={`${s.day} ${s.time}`} className="dark:bg-gray-900">
                         {s.day}: {s.time}
                       </option>
@@ -212,12 +244,12 @@ const MentorsSearch = () => {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-400">Mentorship Notes</label>
+                <label className="text-xs font-semibold text-gray-400">Mentorship Notes & Questions</label>
                 <textarea
                   value={bookNotes}
                   onChange={(e) => setBookNotes(e.target.value)}
                   placeholder="Share details about what you want to learn..."
-                  className="w-full h-24 glass-input resize-none"
+                  className="w-full h-24 glass-input resize-none text-xs"
                 />
               </div>
 
@@ -225,14 +257,14 @@ const MentorsSearch = () => {
                 <button
                   type="button"
                   onClick={() => setBookingMentor(null)}
-                  className="flex-1 glass-button-secondary"
+                  className="flex-1 glass-button-secondary text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={bookingLoading}
-                  className="flex-1 glass-button-primary"
+                  className="flex-1 glass-button-primary text-xs"
                 >
                   {bookingLoading ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> : 'Confirm Booking'}
                 </button>

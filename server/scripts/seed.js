@@ -5,10 +5,39 @@ const Course = require('../models/Course');
 const Challenge = require('../models/Challenge');
 const ForumPost = require('../models/Forum');
 
+function sanitizeMongoUri(uri) {
+  if (!uri) return '';
+  return uri.replace(/\/\/[^@]+@/, '//***:***@');
+}
+
+function validateSeedEnvironment(env = process.env, mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ai-mentor-portal') {
+  if (env.NODE_ENV === 'production') {
+    throw new Error('SEED REFUSED: Execution blocked in production environment (NODE_ENV=production).');
+  }
+
+  if (env.ALLOW_SEED !== 'true') {
+    throw new Error("SEED REFUSED: Explicit safe development confirmation required (ALLOW_SEED must be 'true').");
+  }
+
+  const rawUri = String(mongoUri).toLowerCase();
+  if (
+    rawUri.includes('mongodb+srv:') ||
+    rawUri.includes('.mongodb.net') ||
+    (!rawUri.includes('127.0.0.1') && !rawUri.includes('localhost'))
+  ) {
+    throw new Error('SEED REFUSED: Non-local or remote database target detected. Seeding is strictly forbidden on non-local instances.');
+  }
+
+  return true;
+}
+
 const seedData = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ai-mentor-portal');
-    console.log('Connected to database for seeding...');
+    const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ai-mentor-portal';
+    validateSeedEnvironment(process.env, mongoUri);
+
+    console.log(`Connected to safe local database (${sanitizeMongoUri(mongoUri)}) for seeding...`);
+    await mongoose.connect(mongoUri);
 
     // Clear existing data
     await User.deleteMany({});
@@ -184,11 +213,24 @@ const seedData = async () => {
     console.log('Admin:   admin@portal.com | password123');
     console.log('=========================================\n');
 
-    process.exit(0);
+    if (require.main === module) {
+      process.exit(0);
+    }
   } catch (error) {
-    console.error('Error seeding database:', error);
-    process.exit(1);
+    console.error('Error seeding database:', error.message || error);
+    if (require.main === module) {
+      process.exit(1);
+    }
+    throw error;
   }
 };
 
-seedData();
+if (require.main === module) {
+  seedData();
+}
+
+module.exports = {
+  validateSeedEnvironment,
+  sanitizeMongoUri,
+  seedData
+};
