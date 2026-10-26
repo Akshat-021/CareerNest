@@ -36,18 +36,58 @@ app.use(helmet({
   crossOriginResourcePolicy: false // Allows loading local images on localhost
 }));
 
-// CORS Configuration
+// CORS Configuration - Permissive for Vercel preview domains and configured CLIENT_URL
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow non-browser requests or matching origins
+    if (!origin) return callback(null, true);
+    if (
+      origin === process.env.CLIENT_URL ||
+      origin.startsWith('http://localhost:') ||
+      origin.includes('vercel.app')
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true
 }));
+
+// Enable pre-flight for all routes
+app.options('*', cors());
 
 // Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve local static uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Ensure database connection for serverless function requests
+const mongoose = require('mongoose');
+app.use(async (req, res, next) => {
+  // Allow health check and root to respond without waiting for database
+  if (req.path === '/' || req.path === '/api/health') {
+    return next();
+  }
+
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch (err) {
+      // Handled in connectDB
+    }
+  }
+
+  // Fast fail if database is not connected instead of hanging 10s on bufferCommands
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: 'Database connection unavailable. Please ensure MONGO_URI is configured in Vercel Environment Variables and MongoDB Atlas Network Access allows 0.0.0.0/0.',
+      dbState: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown',
+      hasMongoUri: Boolean(process.env.MONGO_URI)
+    });
+  }
+
+  next();
+});
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -70,6 +110,25 @@ app.use('/api/communities', communityRoutes);
 // Base route test
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to the AI-Powered Course Recommendation & Mentorship Portal API' });
+});
+
+// Health check route
+app.get('/api/health', (req, res) => {
+  const readyState = mongoose.connection.readyState;
+  const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  res.json({
+    status: readyState === 1 ? 'ok' : 'degraded',
+    database: {
+      connected: readyState === 1,
+      readyState,
+      state: states[readyState] || 'unknown',
+      hasMongoUri: Boolean(process.env.MONGO_URI)
+    },
+    cors: {
+      configuredClientUrl: process.env.CLIENT_URL || null
+    },
+    env: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Validate required secrets
