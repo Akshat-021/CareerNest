@@ -81,3 +81,77 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+
+/* Ambient glow and mesh background utilities */
+.mesh-glow-indigo {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%);
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.mesh-glow-violet {
+  position: absolute;
+  width: 450px;
+  height: 450px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0) 70%);
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.mesh-glow-emerald {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0) 70%);
+  filter: blur(50px);
+  pointer-events: none;
+}
+
+/* High-tech grid background */
+.bg-tech-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(156, 163, 175, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(156, 163, 175, 0.05) 1px, transparent 1px);
+}
+
+.dark .bg-tech-grid {
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+/* Glass card with ambient bloom */
+.glass-card-elevated {
+  @apply bg-white/80 dark:bg-gray-900/70 backdrop-blur-xl border border-gray-200/80 dark:border-white/10 shadow-xl transition-all duration-300;
+}
+
+.glass-card-elevated:hover {
+  @apply shadow-2xl border-indigo-500/30 -translate-y-0.5;
+}
+
+/* Animated gradient text helper */
+.gradient-text-vibrant {
+  @apply bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent;
+}
+
+/* Pulse badge */
+.badge-live-pulse {
+  position: relative;
+}
+.badge-live-pulse::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  background: inherit;
+  opacity: 0.4;
+  animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
