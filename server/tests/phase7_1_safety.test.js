@@ -243,4 +243,23 @@ test('CAREERNEST: PHASE 7.1 RELEASE-SAFETY AUDIT TESTS', async (t) => {
     Certificate.findOne = origCertFindOne;
     Certificate.create = origCertCreate;
   });
+
+  await t.test('6. Gmail SMTP Configuration: createTransporter automatically sets service to gmail and strips spaces', async () => {
+    const { createTransporter } = require('../config/mailer');
+    const origUser = process.env.EMAIL_USER;
+    const origPass = process.env.EMAIL_PASS;
+
+    try {
+      process.env.EMAIL_USER = '  careernest.portal@gmail.com ';
+      process.env.EMAIL_PASS = 'abcd efgh ijkl mnop';
+      const transporter = createTransporter();
+      assert.equal(transporter.options.service, 'gmail');
+      assert.equal(transporter.options.auth.user, 'careernest.portal@gmail.com');
+      assert.equal(transporter.options.auth.pass, 'abcdefghijklmnop');
+    } finally {
+      process.env.EMAIL_USER = origUser;
+      process.env.EMAIL_PASS = origPass;
+    }
+  });
 });
+
