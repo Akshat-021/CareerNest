@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  FiChevronRight, FiCpu, FiTrendingUp, FiCheckCircle, FiUsers, FiAward,
+  FiChevronRight, FiCpu, FiTrendingUp, FiUsers, FiAward,
   FiBriefcase, FiLayers, FiShield, FiTerminal, FiCompass, FiArrowRight,
   FiMenu, FiX, FiSun, FiMoon, FiStar, FiZap
 } from 'react-icons/fi';
@@ -286,17 +286,13 @@ const Landing = () => {
       )}
 
       {/* HERO SECTION */}
-      <section className="pt-36 sm:pt-40 pb-20 px-4 sm:px-8 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12 min-h-[90vh]">
-        <div className="flex-1 flex flex-col gap-6 text-center lg:text-left z-10">
+      <section className="pt-36 sm:pt-44 pb-20 px-4 sm:px-8 max-w-5xl mx-auto flex flex-col items-center text-center gap-8 min-h-[75vh] z-10 relative">
+        <div className="flex flex-col items-center gap-6 text-center z-10 max-w-3xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 mb-4 border border-indigo-500/20 shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              The AI Career Intelligence Operating System
-            </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15] text-slate-900 dark:text-white">
               Turn Your Ambition Into A{' '}
               <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
@@ -305,11 +301,11 @@ const Landing = () => {
             </h1>
           </motion.div>
 
-          <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed mx-auto lg:mx-0">
+          <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed mx-auto">
             CareerNest bridges the gap between coursework and industry hiring. Calibrate your 7-factor career readiness, practice AI mock interviews, and connect with verified 1-on-1 industry mentors.
           </p>
 
-          <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
             <Link
               to="/register"
               className="glass-button-primary px-8 py-4 text-base font-bold flex items-center gap-2.5 shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 transition-all"
@@ -325,7 +321,7 @@ const Landing = () => {
           </div>
 
           {/* Social Proof Avatars */}
-          <div className="pt-4 flex items-center justify-center lg:justify-start gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <div className="pt-4 flex items-center justify-center gap-3 text-xs text-slate-500 dark:text-slate-400">
             <div className="flex -space-x-2 overflow-hidden">
               <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-slate-900 bg-indigo-500 text-white font-bold text-[10px] flex items-center justify-center">AR</div>
               <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-slate-900 bg-violet-500 text-white font-bold text-[10px] flex items-center justify-center">SC</div>
@@ -333,60 +329,6 @@ const Landing = () => {
               <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-slate-900 bg-amber-500 text-white font-bold text-[10px] flex items-center justify-center">+24k</div>
             </div>
             <span>Trusted by <b>24,000+</b> aspiring engineers worldwide</span>
-          </div>
-        </div>
-
-        {/* HERO CARD GRAPHIC: Live Career Telemetry */}
-        <div className="flex-1 w-full max-w-lg z-10">
-          <div className="glass-card-elevated p-6 sm:p-8 rounded-3xl shadow-2xl flex flex-col gap-5 border border-indigo-500/30 relative">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-200/60 dark:border-gray-800/60">
-              <div>
-                <span className="text-[10px] uppercase font-extrabold tracking-wider text-indigo-500">Live Career Calibration</span>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Full Stack Software Engineer</h3>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">82%</span>
-                <span className="text-[9px] uppercase font-bold text-emerald-500">Job Ready</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-slate-600 dark:text-slate-300">Technical Depth</span>
-                <span className="text-indigo-600 dark:text-indigo-400 font-bold">88%</span>
-              </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full" style={{ width: '88%' }}></div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-slate-600 dark:text-slate-300">ATS Resume Quality</span>
-                <span className="text-violet-600 dark:text-violet-400 font-bold">92%</span>
-              </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 h-full rounded-full" style={{ width: '92%' }}></div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-slate-600 dark:text-slate-300">AI Mock Interview Score</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold">84%</span>
-              </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full" style={{ width: '84%' }}></div>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
-              <FiCheckCircle className="text-emerald-500 shrink-0" size={22} />
-              <div>
-                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Next Action Prescribed</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Complete Docker & Containerization Micro-Internship</p>
-              </div>
-            </div>
           </div>
         </div>
       </section>

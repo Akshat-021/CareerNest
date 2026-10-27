@@ -52,11 +52,6 @@ const Login = () => {
     }
   };
 
-  const handleDemoFill = (email, pass) => {
-    setValue('email', email, { shouldValidate: true });
-    setValue('password', pass, { shouldValidate: true });
-  };
-
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-slate-50 text-slate-800 dark:bg-[#0b0f19] dark:text-[#f3f4f6] overflow-hidden bg-tech-grid transition-colors duration-300">
       {/* Ambient background glow orbs */}
@@ -226,36 +221,6 @@ const Login = () => {
                 )}
               </button>
             </form>
-
-            {/* Quick Demo Credentials Assistant */}
-            <div className="mt-6 pt-5 border-t border-slate-200/60 dark:border-slate-800/80">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                Quick Demo Sign-In:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleDemoFill('student.staging@careernest.org', 'Password123!')}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 transition-colors"
-                >
-                  Student Demo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDemoFill('mentor.staging@careernest.org', 'Password123!')}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-colors"
-                >
-                  Mentor Demo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDemoFill('admin.staging@careernest.org', 'Password123!')}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-500/10 text-slate-600 dark:text-slate-400 hover:bg-slate-500/20 transition-colors"
-                >
-                  Admin Demo
-                </button>
-              </div>
-            </div>
 
             {/* Sign Up Footer */}
             <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-6">
