@@ -82,11 +82,6 @@ const Login = () => {
         
         {/* Left Column: Visual Showcase (Visible on lg screens) */}
         <div className="hidden lg:flex lg:col-span-6 flex-col gap-6 pr-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-semibold w-fit">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Career Operating System v2.0
-          </div>
-
           <h1 className="text-4xl xl:text-5xl font-black tracking-tight leading-tight text-slate-900 dark:text-white">
             Level up from <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-violet-500 bg-clip-text text-transparent">student</span> to hired engineer.
           </h1>
